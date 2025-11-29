@@ -4,14 +4,15 @@ import (
 	"math"
 	"math/rand"
 
+	. "github.com/gen2brain/raylib-go/raylib"
 	rl "github.com/gen2brain/raylib-go/raylib"
 )
 
 const (
-	screenWidth              = 1280
-	screenHeight             = 720
-	mapWidth                 = 24
-	mapHeight                = 24
+	screenWidth              = 1920
+	screenHeight             = 1000
+	mapWidth                 = 64
+	mapHeight                = 64
 	mouseSensitivity         = 0.002
 	fogDistance      float32 = 20.0
 	playerRadius     float32 = 0.1
@@ -27,48 +28,29 @@ const (
 	lightIntensity float32 = 0.5
 	lightRadius    float32 = 4.0
 	lightFlicker   float32 = 0.1
+	//===============
+	// Procedural gen params
+	fillPercent  int = 45
+	caIterations int = 5
+	wallCutoff   int = 4
+	floorCutoff  int = 5
 )
 
 var (
-	mapData = [mapWidth * mapHeight]int{
-		1, 1, 1, 1, 1, 2, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 1, 1, 2, 1,
-		1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
-		1, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
-		1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2,
-		1, 0, 0, 0, 0, 0, 2, 2, 2, 2, 2, 2, 1, 2, 2, 2, 1, 0, 0, 0, 0, 0, 0, 2,
-		1, 0, 2, 0, 0, 0, 2, 0, 0, 0, 1, 0, 0, 1, 0, 0, 2, 0, 0, 0, 0, 0, 0, 1,
-		1, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 1,
-		1, 0, 0, 0, 0, 0, 2, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1,
-		1, 0, 0, 0, 0, 0, 2, 2, 0, 2, 2, 0, 0, 2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 1,
-		2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2,
-		1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
-		1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 1, 2, 1, 2, 1, 1,
-		1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
-		2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1,
-		2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 2,
-		1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 1,
-		1, 0, 0, 0, 0, 0, 0, 1, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 1,
-		1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 1,
-		1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1,
-		2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
-		1, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
-		1, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1,
-		1, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1,
-		1, 1, 1, 1, 1, 2, 2, 1, 1, 2, 1, 1, 1, 1, 2, 1, 1, 1, 1, 2, 1, 1, 1, 1,
-	}
+	mapData = [mapWidth * mapHeight]int{}
 
 	// Player state
-	pos   = rl.Vector2{X: 2.5, Y: 2.5}
-	dir   = rl.Vector2{X: 1, Y: 0}
-	plane = rl.Vector2{X: 0, Y: 0.66}
+	pos   = Vector2{X: 2.5, Y: 2.5}
+	dir   = Vector2{X: 1, Y: 0}
+	plane = Vector2{X: 0, Y: 0.66}
 
 	// Colors
-	ceilingColor = rl.NewColor(2, 2, 20, 255)
-	floorColor   = rl.NewColor(12, 12, 12, 255)
+	ceilingColor = NewColor(2, 2, 20, 255)
+	floorColor   = NewColor(12, 12, 12, 255)
 
 	// Textures
-	stoneWall rl.Texture2D
-	mossyWall rl.Texture2D
+	stoneWall Texture2D
+	mossyWall Texture2D
 
 	// Head bob
 	bobPhase float32 = 0.0
@@ -79,37 +61,107 @@ var (
 )
 
 type lightSource struct {
-	pos          rl.Vector2
+	pos          Vector2
 	phaseOffset  float32
 	flickerSpeed float32
 }
 
-func main() {
-	rl.InitWindow(screenWidth, screenHeight, "~ GOCASTER ~")
-	defer rl.CloseWindow()
-	rl.SetTargetFPS(60)
-	rl.DisableCursor()
+func initMap() {
+	for i := range mapData {
+		if rand.Intn(90) < fillPercent {
+			mapData[i] = 1 // Wall
+		} else {
+			mapData[i] = 0 // Floor
+		}
+	}
 
-	stoneWall = rl.LoadTexture("Assets/wall.png")
-	mossyWall = rl.LoadTexture("Assets/mossyStone.png")
+	// Cellular automata iterations
+	tempMap := [mapWidth * mapHeight]int{}
+	for range caIterations {
+		copy(tempMap[:], mapData[:])
 
-	// Init Lihgting at specified map spots
+		for y := 1; y < mapHeight-1; y++ {
+			for x := 1; x < mapWidth-1; x++ {
+				idx := y*mapWidth + x
+				wallCount := countWalls(tempMap[:], mapWidth, x, y)
+
+				if tempMap[idx] == 1 && wallCount < wallCutoff {
+					mapData[idx] = 0
+				} else if tempMap[idx] == 0 && wallCount > floorCutoff {
+					mapData[idx] = 1
+				}
+			}
+		}
+	}
+
+	// Ensure borders are walls
+	for x := range mapWidth {
+		mapData[0*mapWidth+x] = 1
+		mapData[(mapHeight-1)*mapWidth+x] = 1
+	}
+	for y := range mapHeight {
+		mapData[y*mapWidth+0] = 1
+		mapData[y*mapWidth+(mapWidth-1)] = 1
+	}
+
+	// Place player in valid spot
+	for {
+		pos.X = 1 + rand.Float32()*(float32(mapWidth)-3)
+		pos.Y = 1 + rand.Float32()*(float32(mapHeight)-3)
+		if isValidPosition(pos) {
+			break
+		}
+	}
+
+	// Init Lighting at specified map spots
 	lightSources = make([]lightSource, 0)
 	for y := range mapHeight {
 		for x := range mapWidth {
-			if mapData[y*mapWidth+x] == 2 {
+			if mapData[y*mapWidth+x] == 1 && rand.Float32() < 0.1 { // 10% chance
 				lightSources = append(lightSources, lightSource{
-					pos:          rl.Vector2{X: float32(x) + 0.5, Y: float32(y) + 0.5},
+					pos:          Vector2{X: float32(x) + 0.5, Y: float32(y) + 0.5},
 					phaseOffset:  rand.Float32() * 2 * math.Pi,
 					flickerSpeed: 1.0 + rand.Float32()*0.5,
 				})
 			}
 		}
 	}
+}
+
+func countWalls(data []int, w, x, y int) int {
+	count := 0
+	for dy := -1; dy <= 1; dy++ {
+		for dx := -1; dx <= 1; dx++ {
+			if dx == 0 && dy == 0 {
+				continue
+			}
+			nx, ny := x+dx, y+dy
+			if nx >= 0 && nx < w && ny >= 0 && ny < mapHeight {
+				if data[ny*w+nx] == 1 {
+					count++
+				}
+			}
+		}
+	}
+
+	return count
+}
+
+func main() {
+	InitWindow(screenWidth, screenHeight, "~ GOCASTER ~")
+	defer CloseWindow()
+
+	SetTargetFPS(120)
+	DisableCursor()
+
+	stoneWall = LoadTexture("Assets/wall.png")
+	mossyWall = LoadTexture("Assets/mossyStone.png")
+
+	initMap()
 
 	// Main loop
-	for !rl.WindowShouldClose() {
-		dt := rl.GetFrameTime()
+	for !WindowShouldClose() {
+		dt := GetFrameTime()
 
 		torchFlickerPhase += dt * 2.0
 		if torchFlickerPhase > 2*math.Pi {
@@ -121,49 +173,49 @@ func main() {
 		rotSpeed := 2.0 * dt  // Radians per second
 
 		rotationAngle := 0.0
-		if rl.IsKeyDown(rl.KeyLeft) {
+		if IsKeyDown(KeyLeft) {
 			rotationAngle -= float64(rotSpeed)
 		}
-		if rl.IsKeyDown(rl.KeyRight) {
+		if IsKeyDown(KeyRight) {
 			rotationAngle += float64(rotSpeed)
 		}
-		mouseDelta := rl.GetMouseDelta()
+		mouseDelta := GetMouseDelta()
 		rotationAngle += float64(mouseDelta.X) * mouseSensitivity
 		if rotationAngle != 0 {
 			rotate(float32(rotationAngle))
 		}
 
-		moveDir := rl.Vector2Zero()
-		if rl.IsKeyDown(rl.KeyW) {
-			moveDir = rl.Vector2Add(moveDir, dir)
+		moveDir := Vector2Zero()
+		if IsKeyDown(KeyW) {
+			moveDir = Vector2Add(moveDir, dir)
 		}
-		if rl.IsKeyDown(rl.KeyS) {
-			moveDir = rl.Vector2Add(moveDir, rl.Vector2Scale(dir, -1))
+		if IsKeyDown(KeyS) {
+			moveDir = Vector2Add(moveDir, rl.Vector2Scale(dir, -1))
 		}
-		if rl.IsKeyDown(rl.KeyD) {
-			strafeDir := rl.Vector2Normalize(plane)
-			moveDir = rl.Vector2Add(moveDir, strafeDir)
+		if IsKeyDown(KeyD) {
+			strafeDir := Vector2Normalize(plane)
+			moveDir = Vector2Add(moveDir, strafeDir)
 		}
-		if rl.IsKeyDown(rl.KeyA) {
-			strafeDir := rl.Vector2Normalize(plane)
-			moveDir = rl.Vector2Add(moveDir, rl.Vector2Scale(strafeDir, -1))
+		if IsKeyDown(KeyA) {
+			strafeDir := Vector2Normalize(plane)
+			moveDir = Vector2Add(moveDir, Vector2Scale(strafeDir, -1))
 		}
 
-		moveLength := rl.Vector2Length(moveDir)
+		moveLength := Vector2Length(moveDir)
 		if moveLength > 0 {
 			// Normalize and scale by moveSpeed
-			moveDir = rl.Vector2Scale(rl.Vector2Normalize(moveDir), moveSpeed)
+			moveDir = Vector2Scale(Vector2Normalize(moveDir), moveSpeed)
 
 			// Attempt full movement
-			newPos := rl.Vector2Add(pos, moveDir)
+			newPos := Vector2Add(pos, moveDir)
 			if isValidPosition(newPos) {
 				pos = newPos
 			} else {
-				newPosX := rl.Vector2{X: pos.X + moveDir.X, Y: pos.Y}
+				newPosX := Vector2{X: pos.X + moveDir.X, Y: pos.Y}
 				if isValidPosition(newPosX) {
 					pos = newPosX
 				} else {
-					newPosY := rl.Vector2{X: pos.X, Y: pos.Y + moveDir.Y}
+					newPosY := Vector2{X: pos.X, Y: pos.Y + moveDir.Y}
 					if isValidPosition(newPosY) {
 						pos = newPosY
 					}
@@ -178,21 +230,21 @@ func main() {
 			bobPhase = 0.0
 		}
 
-		rl.BeginDrawing()
-		rl.ClearBackground(rl.Black)
+		BeginDrawing()
+		ClearBackground(Black)
 
 		// Ceiling and floor rendering
-		rl.DrawRectangle(0, 0, screenWidth, screenHeight/2, ceilingColor)
-		rl.DrawRectangle(0, screenHeight/2, screenWidth, screenHeight/2, floorColor)
+		DrawRectangle(0, 0, screenWidth, screenHeight/2, ceilingColor)
+		DrawRectangle(0, screenHeight/2, screenWidth, screenHeight/2, floorColor)
 
 		bobOffset := bobAmplitude * float32(math.Sin(float64(bobPhase)))
 
-		var sourceRec, destRec rl.Rectangle
+		var sourceRec, destRec Rectangle
 
 		// Raycasting procedure
 		for x := range screenWidth {
 			cameraX := 2*float32(x)/float32(screenWidth) - 1
-			rayDir := rl.Vector2Add(dir, rl.Vector2Scale(plane, cameraX))
+			rayDir := Vector2Add(dir, Vector2Scale(plane, cameraX))
 
 			// Cast ray
 			wallType, side, distance, wallX := castRay(mapData[:], mapWidth, pos, rayDir)
@@ -202,7 +254,7 @@ func main() {
 			wallTop := (float32(screenHeight)-lineHeightFloat)/2.0 + bobOffset
 
 			// Texture selection
-			var texture rl.Texture2D
+			var texture Texture2D
 			switch wallType {
 			case 1:
 				texture = stoneWall
@@ -225,12 +277,12 @@ func main() {
 			// Distance-based dynamic lighting
 			brightnessDist := 1.0 - distance/fogDistance
 			if brightnessDist < 0 {
-				brightness += brightnessDist * 0.4
+				brightness += brightnessDist * 0.5
 			}
 
 			// Torch lighting
-			hitPoint := rl.Vector2Add(pos, rl.Vector2Scale(rayDir, distance))
-			torchDist := rl.Vector2Distance(pos, hitPoint)
+			hitPoint := Vector2Add(pos, Vector2Scale(rayDir, distance))
+			torchDist := Vector2Distance(pos, hitPoint)
 			if torchDist < torchRadius {
 				torchBrightness := torchIntensity + (1.0 - torchDist/torchRadius)
 				torchFlickerFactor := 1.0 + torchFlicker*float32(math.Sin(float64(torchFlickerPhase)))
@@ -239,7 +291,7 @@ func main() {
 
 			// Static light sources
 			for _, light := range lightSources {
-				lightDist := rl.Vector2Distance(light.pos, hitPoint)
+				lightDist := Vector2Distance(light.pos, hitPoint)
 				if lightDist < lightRadius {
 					lightBrightness := lightIntensity * (1.0 - lightDist/lightRadius) * (1.0 - lightDist/lightRadius)
 					flickerFactor := 1.0 + lightFlicker*float32(math.Sin(float64(light.flickerSpeed*torchFlickerPhase+light.phaseOffset)))
@@ -257,33 +309,37 @@ func main() {
 				brightness = 0.0
 			}
 			finalBrightness := brightness * sideFactor
-			tint := rl.NewColor(
+			tint := NewColor(
 				uint8(255*finalBrightness),
 				uint8(255*finalBrightness),
 				uint8(255*finalBrightness),
 				255,
 			)
 
-			rl.DrawTexturePro(texture, sourceRec, destRec, rl.Vector2Zero(), 0, tint)
+			DrawTexturePro(texture, sourceRec, destRec, Vector2Zero(), 0, tint)
 		}
+		// Draw Crosshair
+		DrawLine(screenWidth/2-10, screenHeight/2, screenWidth/2+10, screenHeight/2, RayWhite)
+		DrawLine(screenWidth/2, screenHeight/2-10, screenWidth/2, screenHeight/2+10, RayWhite)
 
-		rl.EndDrawing()
+		DrawFPS(10, 10)
+		EndDrawing()
 	}
 
 	// Unload textures to prevent memory leaks
-	rl.UnloadTexture(stoneWall)
-	rl.UnloadTexture(mossyWall)
+	UnloadTexture(stoneWall)
+	UnloadTexture(mossyWall)
 }
 
-func isValidPosition(p rl.Vector2) bool {
+func isValidPosition(p Vector2) bool {
 	mapX := int(p.X)
 	mapY := int(p.Y)
 
-	var wallRect rl.Rectangle
+	var wallRect Rectangle
 	wallRect.Width = 1
 	wallRect.Height = 1
 
-	// Check 3x3 grid around postion
+	// Check 3x3 grid around position
 	for dx := -1; dx <= 1; dx++ {
 		for dy := -1; dy <= 1; dy++ {
 			checkX := mapX + dx
@@ -294,7 +350,7 @@ func isValidPosition(p rl.Vector2) bool {
 			if mapData[checkY*mapWidth+checkX] != 0 {
 				wallRect.X = float32(checkX)
 				wallRect.Y = float32(checkY)
-				if rl.CheckCollisionCircleRec(p, playerRadius, wallRect) {
+				if CheckCollisionCircleRec(p, playerRadius, wallRect) {
 					return false
 				}
 			}
@@ -303,7 +359,7 @@ func isValidPosition(p rl.Vector2) bool {
 	return true
 }
 
-func castRay(mapData []int, mapWidth int, pos rl.Vector2, rayDir rl.Vector2) (wallType int, side int, distance float32, wallX float32) {
+func castRay(mapData []int, mapWidth int, pos Vector2, rayDir Vector2) (wallType int, side int, distance float32, wallX float32) {
 	mapX := int(pos.X)
 	mapY := int(pos.Y)
 
@@ -356,7 +412,7 @@ func castRay(mapData []int, mapWidth int, pos rl.Vector2, rayDir rl.Vector2) (wa
 		distance = (float32(mapY) - pos.Y + (1-float32(stepY))/2) / rayDir.Y
 	}
 
-	hitPoint := rl.Vector2Add(pos, rl.Vector2Scale(rayDir, distance))
+	hitPoint := Vector2Add(pos, Vector2Scale(rayDir, distance))
 	if side == 0 {
 		wallX = hitPoint.Y - float32(math.Floor(float64(hitPoint.Y)))
 	} else {
